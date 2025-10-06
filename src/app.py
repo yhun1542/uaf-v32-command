@@ -36,6 +36,10 @@ app.add_middleware(
 # API Routes
 app.include_router(command_router, prefix="/v32/command", tags=["Command Hub"])
 
+# Connector Routes
+from v32.connectors.routes import router as connector_router
+app.include_router(connector_router, prefix="/v32/connectors", tags=["Data Connectors"])
+
 # Serve the Aegis V4 Dashboard (Frontend)
 try:
     # Mounts the static files at the root URL (http://localhost:8000)

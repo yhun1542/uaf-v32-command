@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="ko"><head>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aegis V4 - UAF v32 Command Hub</title>
@@ -8,23 +10,106 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        :root { --font-sans: 'Noto Sans KR', sans-serif; --bg-main: #0a0a0a; --bg-card: #141414; --border-color: #2a2a2a; --text-main: #f5f5f5; --text-muted: #a3a3a3; }
+        :root { 
+            --font-sans: 'Noto Sans KR', sans-serif; 
+            --bg-main: #0a0a0a; 
+            --bg-card: #141414; 
+            --border-color: #2a2a2a; 
+            --text-main: #f5f5f5; 
+            --text-muted: #a3a3a3; 
+        }
         body { font-family: var(--font-sans); background-color: var(--bg-main); color: var(--text-main); }
         .progress-bar>div { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .task-item { animation: fadeIn 0.3s ease-out; }
-    </style></head><body class="p-4 sm:p-6 lg:p-8">
+        .connector-card { transition: all 0.3s ease; }
+        .connector-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .news-item { border-left: 3px solid #3b82f6; padding-left: 12px; margin-bottom: 12px; }
+        .filing-item { border-left: 3px solid #10b981; padding-left: 12px; margin-bottom: 12px; }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
     <div class="max-w-7xl mx-auto">
+        <!-- Header -->
         <header class="flex justify-between items-center mb-8 pb-4 border-b border-border-color">
             <div>
-                <h1 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-green-500">Operation Singularity</h1>
+                <h1 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-green-500">
+                    Operation Singularity
+                </h1>
                 <p class="text-base text-text-muted">UAF v32 통합 작전 현황 (Aegis V4)</p>
             </div>
-            <div id="connection-status" class="flex items-center gap-3 px-4 py-2 rounded-lg bg-red-900/50 text-red-400 text-sm font-medium shadow-md border border-red-700">
-                <i data-lucide="wifi-off" class="w-4 h-4"></i>
-                <span>DISCONNECTED</span>
+            <div class="flex items-center gap-4">
+                <div id="connection-status" class="flex items-center gap-3 px-4 py-2 rounded-lg bg-red-900/50 text-red-400 text-sm font-medium shadow-md border border-red-700">
+                    <i data-lucide="wifi-off" class="w-4 h-4"></i>
+                    <span>DISCONNECTED</span>
+                </div>
+                <button onclick="toggleConnectorsPanel()" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition">
+                    <i data-lucide="database" class="w-4 h-4"></i>
+                    <span>Data Connectors</span>
+                </button>
             </div>
         </header>
+
+        <!-- Connectors Panel (Hidden by default) -->
+        <div id="connectors-panel" class="hidden mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- News Connector -->
+                <div class="connector-card bg-bg-card border border-gray-800 rounded-xl shadow-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="newspaper" class="w-6 h-6 text-blue-500"></i>
+                            <h3 class="text-xl font-bold">News Connector</h3>
+                        </div>
+                        <span class="px-3 py-1 bg-blue-900/50 text-blue-400 text-xs font-semibold rounded-full">ACTIVE</span>
+                    </div>
+                    <p class="text-sm text-text-muted mb-4">NewsAPI + Google News RSS 통합</p>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Search Query</label>
+                            <input type="text" id="news-query" value="artificial intelligence" 
+                                class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+                        <button onclick="fetchNews()" 
+                            class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
+                            <i data-lucide="search" class="w-4 h-4 inline mr-2"></i>
+                            Search News
+                        </button>
+                    </div>
+                    
+                    <div id="news-results" class="mt-4 max-h-96 overflow-y-auto"></div>
+                </div>
+
+                <!-- EDGAR Connector -->
+                <div class="connector-card bg-bg-card border border-gray-800 rounded-xl shadow-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="file-text" class="w-6 h-6 text-green-500"></i>
+                            <h3 class="text-xl font-bold">EDGAR Connector</h3>
+                        </div>
+                        <span class="px-3 py-1 bg-green-900/50 text-green-400 text-xs font-semibold rounded-full">ACTIVE</span>
+                    </div>
+                    <p class="text-sm text-text-muted mb-4">SEC EDGAR API 통합</p>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Company Ticker</label>
+                            <input type="text" id="edgar-ticker" value="AAPL" 
+                                class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm focus:outline-none focus:border-green-500">
+                        </div>
+                        <button onclick="fetchFilings()" 
+                            class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition">
+                            <i data-lucide="search" class="w-4 h-4 inline mr-2"></i>
+                            Search Filings
+                        </button>
+                    </div>
+                    
+                    <div id="edgar-results" class="mt-4 max-h-96 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
         <main id="dashboard-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div id="loading-placeholder" class="col-span-1 lg:col-span-3 flex justify-center items-center h-64">
                 <div class="text-center">
@@ -33,7 +118,9 @@
                 </div>
             </div>
         </main>
-    </div><script>
+    </div>
+
+    <script>
     let MASTER_PLAN = {};
     let retryInterval = 2000;
 
@@ -48,6 +135,98 @@
         p2: { base: 'green', gradient: 'from-green-500/20 to-green-700/20' },
         p3: { base: 'orange', gradient: 'from-orange-500/20 to-orange-700/20' }
     };
+
+    // Toggle Connectors Panel
+    function toggleConnectorsPanel() {
+        const panel = document.getElementById('connectors-panel');
+        panel.classList.toggle('hidden');
+        lucide.createIcons();
+    }
+
+    // Fetch News
+    async function fetchNews() {
+        const query = document.getElementById('news-query').value;
+        const resultsDiv = document.getElementById('news-results');
+        
+        resultsDiv.innerHTML = '<div class="text-center py-4"><i data-lucide="loader-2" class="w-6 h-6 animate-spin text-blue-500 mx-auto"></i></div>';
+        lucide.createIcons();
+        
+        try {
+            const response = await fetch(`/v32/connectors/news/search?query=${encodeURIComponent(query)}&max_results=5`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                let html = '<div class="space-y-2">';
+                
+                // Combine all sources
+                for (const [source, articles] of Object.entries(data.results)) {
+                    articles.forEach(article => {
+                        html += `
+                            <div class="news-item bg-gray-900/50 p-3 rounded-lg">
+                                <div class="flex items-start justify-between mb-1">
+                                    <span class="text-xs font-semibold text-blue-400">${article.source}</span>
+                                    <span class="text-xs text-gray-500">${new Date(article.published_at).toLocaleDateString()}</span>
+                                </div>
+                                <h4 class="text-sm font-medium mb-1">${article.title}</h4>
+                                ${article.description ? `<p class="text-xs text-gray-400 mb-2">${article.description.substring(0, 100)}...</p>` : ''}
+                                <a href="${article.url}" target="_blank" class="text-xs text-blue-500 hover:underline">Read more →</a>
+                            </div>
+                        `;
+                    });
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+            } else {
+                resultsDiv.innerHTML = '<p class="text-sm text-red-400">Failed to fetch news</p>';
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = `<p class="text-sm text-red-400">Error: ${error.message}</p>`;
+        }
+        
+        lucide.createIcons();
+    }
+
+    // Fetch SEC Filings
+    async function fetchFilings() {
+        const ticker = document.getElementById('edgar-ticker').value;
+        const resultsDiv = document.getElementById('edgar-results');
+        
+        resultsDiv.innerHTML = '<div class="text-center py-4"><i data-lucide="loader-2" class="w-6 h-6 animate-spin text-green-500 mx-auto"></i></div>';
+        lucide.createIcons();
+        
+        try {
+            const response = await fetch(`/v32/connectors/edgar/company/${ticker}?max_results=5`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                let html = '<div class="space-y-2">';
+                
+                data.filings.forEach(filing => {
+                    html += `
+                        <div class="filing-item bg-gray-900/50 p-3 rounded-lg">
+                            <div class="flex items-start justify-between mb-1">
+                                <span class="text-xs font-semibold text-green-400">${filing.form_type}</span>
+                                <span class="text-xs text-gray-500">${filing.filing_date}</span>
+                            </div>
+                            <h4 class="text-sm font-medium mb-1">${filing.company_name}</h4>
+                            <p class="text-xs text-gray-400 mb-2">CIK: ${filing.cik}</p>
+                            <a href="${filing.file_url}" target="_blank" class="text-xs text-green-500 hover:underline">View filing →</a>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+            } else {
+                resultsDiv.innerHTML = '<p class="text-sm text-red-400">Failed to fetch filings</p>';
+            }
+        } catch (error) {
+            resultsDiv.innerHTML = `<p class="text-sm text-red-400">Error: ${error.message}</p>`;
+        }
+        
+        lucide.createIcons();
+    }
 
     function Task({ id, name, progress, status }, accent) {
         const colors = STATUS_COLORS[status];
@@ -125,7 +304,6 @@
         const newNode = template.content.firstChild;
 
         el.replaceWith(newNode);
-        // Re-initialize icon for the new node
         lucide.createIcons({ nodes: [newNode.querySelector('i')] });
     }
 
@@ -134,7 +312,7 @@
         if (isConnected) {
             statusEl.className = 'flex items-center gap-3 px-4 py-2 rounded-lg bg-green-900/50 text-green-400 text-sm font-medium shadow-md border border-green-700';
             statusEl.innerHTML = `<i data-lucide="radio" class="w-4 h-4 animate-pulse"></i><span>LIVE</span>`;
-            retryInterval = 2000; // Reset retry interval on success
+            retryInterval = 2000;
         } else {
             statusEl.className = 'flex items-center gap-3 px-4 py-2 rounded-lg bg-red-900/50 text-red-400 text-sm font-medium shadow-md border border-red-700';
             statusEl.innerHTML = `<i data-lucide="wifi-off" class="w-4 h-4"></i><span>DISCONNECTED</span>`;
@@ -148,7 +326,6 @@
         if (eventSource) { eventSource.close(); }
         
         console.log("Connecting to UAF v32 Command Stream...");
-        // Stream URL is relative since backend serves the frontend
         eventSource = new EventSource('/v32/command/stream');
 
         eventSource.onopen = () => { updateConnectionStatus(true); };
@@ -158,7 +335,6 @@
             updateConnectionStatus(false);
             eventSource.close();
             
-            // Exponential backoff reconnection
             retryInterval = Math.min(retryInterval * 1.5, 30000);
             setTimeout(connectToStream, retryInterval);
         };
@@ -182,13 +358,16 @@
 
         eventSource.addEventListener('HEARTBEAT', () => {});
 
-         eventSource.addEventListener('ERROR', e => {
+        eventSource.addEventListener('ERROR', e => {
             console.error("Server error:", JSON.parse(e.data));
             updateConnectionStatus(false, JSON.parse(e.data).message);
         });
     }
     
     document.addEventListener('DOMContentLoaded', () => {
-        lucide.createIcons(); // Initialize icons (like the loading spinner)
+        lucide.createIcons();
         connectToStream();
-    });</script></body></html>
+    });
+    </script>
+</body>
+</html>
