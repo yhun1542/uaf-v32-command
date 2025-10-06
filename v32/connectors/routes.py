@@ -6,12 +6,13 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from .news_connector import NewsConnector, NewsArticle
 from .edgar_connector import EDGARConnector, SECFiling
+from .nasa_connector import nasa_connector
 
 router = APIRouter()
 
 # Initialize connectors
 news_connector = NewsConnector()
-edgar_connector = EDGARConnector()
+edgar_connector = EDGARConnector(user_email="yhjun@seohancorp.com")
 
 # ==================== News Connector Routes ====================
 
@@ -213,6 +214,59 @@ async def get_filing_content(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Filing content fetch failed: {str(e)}")
 
+# ==================== NASA Connector Routes ====================
+
+@router.get("/nasa/collections")
+async def search_nasa_collections(
+    keyword: str = Query(..., description="Search keyword"),
+    max_results: int = Query(20, ge=1, le=100, description="Maximum results")
+):
+    """NASA 데이터 컬렉션 검색"""
+    try:
+        collections = await nasa_connector.search_collections(
+            keyword=keyword,
+            max_results=max_results
+        )
+        return {
+            "status": "success",
+            "keyword": keyword,
+            "total_results": len(collections),
+            "collections": collections
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"NASA collection search failed: {str(e)}")
+
+@router.get("/nasa/granules/{collection_id}")
+async def search_nasa_granules(
+    collection_id: str,
+    start_date: Optional[str] = Query(None, description="Start date (ISO format)"),
+    end_date: Optional[str] = Query(None, description="End date (ISO format)"),
+    max_results: int = Query(20, ge=1, le=100, description="Maximum results")
+):
+    """NASA 데이터 그래뉼 검색"""
+    try:
+        from datetime import datetime
+        start_dt = datetime.fromisoformat(start_date) if start_date else None
+        end_dt = datetime.fromisoformat(end_date) if end_date else None
+        
+        granules = await nasa_connector.search_granules(
+            collection_concept_id=collection_id,
+            start_date=start_dt,
+            end_date=end_dt,
+            max_results=max_results
+        )
+        
+        return {
+            "status": "success",
+            "collection_id": collection_id,
+            "total_results": len(granules),
+            "granules": granules
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"NASA granule search failed: {str(e)}")
+
 # ==================== Health Check ====================
 
 @router.get("/health")
@@ -225,6 +279,7 @@ async def connectors_health():
                 "newsapi": bool(news_connector.newsapi_key),
                 "gnews": True
             },
-            "edgar": True
+            "edgar": True,
+            "nasa": bool(nasa_connector.token)
         }
     }

@@ -197,3 +197,6 @@ class NewsConnector:
         except Exception as e:
             print(f"Trending topics error: {e}")
             return []
+
+# Global instance
+news_connector = NewsConnector()

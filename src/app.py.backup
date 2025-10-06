@@ -1,0 +1,75 @@
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from v32.core.redis_client import close_redis_pool, get_redis_client
+from v32.command.routes import router as command_router
+from v32.data.routes import router as data_router
+from v32.command.state_manager import StateManager
+import redis.asyncio as redis
+import os
+import asyncio # 필수 Import 추가됨
+
+# 커넥터 Import
+from v32.connectors.edgar_connector import edgar_connector
+from v32.connectors.dart_connector import dart_connector
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("UAF V32 Starting... [v32.1.2]")
+    
+    # 1. Redis 연결 및 상태 확인 (필수)
+    try:
+        client: redis.Redis = await get_redis_client()
+        await StateManager.get_state(client)
+        print("Redis connection verified.")
+    except Exception as e:
+        print(f"FATAL: Core infrastructure failure (Redis/Config). Error: {e}")
+        exit(1)
+        
+    # 2. 데이터 커넥터 초기화 (병렬 실행)
+    print("Initializing data connectors (EDGAR & DART)...")
+    try:
+        # DART CORPCODE 다운로드 및 EDGAR CIK 맵 로드를 동시에 시작하여 시작 시간 최적화
+        await asyncio.gather(
+            edgar_connector.initialize_cik_map(),
+            dart_connector.initialize_corp_codes()
+        )
+        print("All data connectors initialized successfully.")
+
+    except Exception as e:
+        # 커넥터 초기화 실패 시 경고 출력. 시스템은 구동하되, 해당 기능은 사용 불가 상태가 됨.
+        # (예: 외부 API 서버 다운, API 키 만료 등)
+        print(f"WARNING: One or more connectors failed initialization. System proceeding with limited functionality. Error: {e}")
+
+    
+    yield
+    
+    await close_redis_pool()
+    print("UAF V32 Stopped.")
+
+app = FastAPI(title="UAF V32 Command Hub", version="32.1.2", lifespan=lifespan)
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # 보안 강화 필요
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# API Routes
+app.include_router(command_router, prefix="/v32/command", tags=["Command Hub"])
+app.include_router(data_router, prefix="/v32/data", tags=["P1 Data Connectors"])
+
+# Serve the Aegis V4 Dashboard
+static_dir = os.path.join(os.path.dirname(__file__), 'static')
+if os.path.exists(static_dir):
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="aegis_v4")
+else:
+     print("Warning: src/static directory not found.")
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": "32.1.2", "component": "UAF V32 Core"}
