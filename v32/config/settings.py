@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     # API Keys for Data Connectors
     NEWS_API_KEY: Optional[SecretStr] = None
     GNEWS_API_KEY: Optional[SecretStr] = None
-    DART_API_KEY: Optional[SecretStr] = None # 신규 추가
+    DART_API_KEY: Optional[SecretStr] = None
+    NASA_EARTHDATA_TOKEN: Optional[SecretStr] = None  # NASA Earthdata token
 
     # Corporate Identity
     CORPORATE_NAME: str = Field(..., min_length=1)

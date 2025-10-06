@@ -92,9 +92,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Import connectors router
+from v32.connectors.routes import router as connectors_router
+
 # API Routes
 app.include_router(command_router, prefix="/v32/command", tags=["Command Hub"])
 app.include_router(data_router, prefix="/v32/data", tags=["P1 Data Connectors"])
+app.include_router(connectors_router, prefix="/v32/connectors", tags=["Data Connectors"])
 
 # 초기화 상태 확인 엔드포인트
 @app.get("/v32/connectors/initialization-status")
