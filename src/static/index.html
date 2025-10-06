@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="ko"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis V4 - UAF v32 Command Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root { --font-sans: 'Noto Sans KR', sans-serif; --bg-main: #0a0a0a; --bg-card: #141414; --border-color: #2a2a2a; --text-main: #f5f5f5; --text-muted: #a3a3a3; }
+        body { font-family: var(--font-sans); background-color: var(--bg-main); color: var(--text-main); }
+        .progress-bar>div { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .task-item { animation: fadeIn 0.3s ease-out; }
+    </style></head><body class="p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-8 pb-4 border-b border-border-color">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-green-500">Operation Singularity</h1>
+                <p class="text-base text-text-muted">UAF v32 통합 작전 현황 (Aegis V4)</p>
+            </div>
+            <div id="connection-status" class="flex items-center gap-3 px-4 py-2 rounded-lg bg-red-900/50 text-red-400 text-sm font-medium shadow-md border border-red-700">
+                <i data-lucide="wifi-off" class="w-4 h-4"></i>
+                <span>DISCONNECTED</span>
+            </div>
+        </header>
+        <main id="dashboard-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div id="loading-placeholder" class="col-span-1 lg:col-span-3 flex justify-center items-center h-64">
+                <div class="text-center">
+                    <i data-lucide="loader-2" class="w-12 h-12 animate-spin text-blue-500 mb-4 mx-auto"></i>
+                    <p class="text-text-muted">지휘소 연결 대기 중...</p>
+                </div>
+            </div>
+        </main>
+    </div><script>
+    let MASTER_PLAN = {};
+    let retryInterval = 2000;
+
+    const ICONS = {
+        PENDING: 'clock', IN_PROGRESS: 'activity', COMPLETED: 'check-square', BLOCKED: 'alert-triangle'
+    };
+    const STATUS_COLORS = {
+        PENDING: 'text-gray-500', IN_PROGRESS: 'text-blue-400', COMPLETED: 'text-green-400', BLOCKED: 'text-yellow-500'
+    };
+    const ACCENT_MAP = {
+        p1: { base: 'blue', gradient: 'from-blue-500/20 to-blue-700/20' },
+        p2: { base: 'green', gradient: 'from-green-500/20 to-green-700/20' },
+        p3: { base: 'orange', gradient: 'from-orange-500/20 to-orange-700/20' }
+    };
+
+    function Task({ id, name, progress, status }, accent) {
+        const colors = STATUS_COLORS[status];
+        const icon = ICONS[status];
+        const progressColor = `bg-${ACCENT_MAP[accent].base}-500`;
+
+        return `
+        <div id="${id}" class="task-item py-3 border-b border-gray-800 last:border-b-0">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3 text-sm font-medium">
+                    <i data-lucide="${icon}" class="w-4 h-4 ${colors} ${status === 'IN_PROGRESS' ? 'animate-pulse' : ''}"></i>
+                    <span class="text-text-main">${name}</span>
+                </div>
+                <span class="text-xs font-mono font-semibold ${colors}">${progress}%</span>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-2 overflow-hidden progress-bar">
+                <div class="${progressColor} h-2 rounded-full" style="width: ${progress}%"></div>
+            </div>
+        </div>`;
+    }
+
+    function Phase({ name, tasks }, accent) {
+        return `<div class="mb-6">
+            <h4 class="font-semibold text-text-muted text-sm uppercase tracking-wider mb-3">${name}</h4>
+            <div>${tasks.map(t => Task(t, accent)).join('')}</div>
+        </div>`;
+    }
+    
+    function Project({ name, accent, phases }) {
+        const { base, gradient } = ACCENT_MAP[accent];
+        
+        return `
+        <div class="bg-bg-card border border-gray-800 rounded-xl shadow-xl overflow-hidden transition duration-300 hover:shadow-2xl hover:border-${base}-500">
+            <div class="p-6 bg-gradient-to-b ${gradient} border-b border-gray-800">
+                <h3 class="text-xl font-bold text-white">${name}</h3>
+            </div>
+            <div class="p-6">
+                ${Object.values(phases).map(p => Phase(p, accent)).join('')}
+            </div>
+        </div>`;
+    }
+
+    function renderDashboard() {
+        const grid = document.getElementById('dashboard-grid');
+        if (Object.keys(MASTER_PLAN).length > 0) {
+             document.getElementById('loading-placeholder')?.remove();
+             grid.innerHTML = Object.values(MASTER_PLAN).map(Project).join('');
+        }
+        lucide.createIcons();
+    }
+
+    function updateLocalState(task) {
+        for (const project of Object.values(MASTER_PLAN)) {
+            for (const phase of Object.values(project.phases)) {
+                const index = phase.tasks.findIndex(t => t.id === task.id);
+                if (index !== -1) {
+                    phase.tasks[index] = task;
+                    return project.accent;
+                }
+            }
+        }
+        return null;
+    }
+
+    function handleTaskUpdate(task) {
+        const accent = updateLocalState(task);
+        if (!accent) return;
+
+        const el = document.getElementById(task.id);
+        if (!el) { renderDashboard(); return; }
+
+        const newHTML = Task(task, accent);
+        const template = document.createElement('template');
+        template.innerHTML = newHTML.trim();
+        const newNode = template.content.firstChild;
+
+        el.replaceWith(newNode);
+        // Re-initialize icon for the new node
+        lucide.createIcons({ nodes: [newNode.querySelector('i')] });
+    }
+
+    function updateConnectionStatus(isConnected, error = null) {
+        const statusEl = document.getElementById('connection-status');
+        if (isConnected) {
+            statusEl.className = 'flex items-center gap-3 px-4 py-2 rounded-lg bg-green-900/50 text-green-400 text-sm font-medium shadow-md border border-green-700';
+            statusEl.innerHTML = `<i data-lucide="radio" class="w-4 h-4 animate-pulse"></i><span>LIVE</span>`;
+            retryInterval = 2000; // Reset retry interval on success
+        } else {
+            statusEl.className = 'flex items-center gap-3 px-4 py-2 rounded-lg bg-red-900/50 text-red-400 text-sm font-medium shadow-md border border-red-700';
+            statusEl.innerHTML = `<i data-lucide="wifi-off" class="w-4 h-4"></i><span>DISCONNECTED</span>`;
+        }
+        lucide.createIcons({ nodes: [statusEl.querySelector('i')] });
+    }
+
+    let eventSource = null;
+
+    function connectToStream() {
+        if (eventSource) { eventSource.close(); }
+        
+        console.log("Connecting to UAF v32 Command Stream...");
+        // Stream URL is relative since backend serves the frontend
+        eventSource = new EventSource('/v32/command/stream');
+
+        eventSource.onopen = () => { updateConnectionStatus(true); };
+
+        eventSource.onerror = (e) => {
+            console.error("EventSource failed:", e);
+            updateConnectionStatus(false);
+            eventSource.close();
+            
+            // Exponential backoff reconnection
+            retryInterval = Math.min(retryInterval * 1.5, 30000);
+            setTimeout(connectToStream, retryInterval);
+        };
+
+        eventSource.addEventListener('INITIAL_STATE', e => {
+            try {
+                MASTER_PLAN = JSON.parse(e.data);
+                renderDashboard();
+            } catch (err) {
+                console.error("Error parsing INITIAL_STATE:", err);
+            }
+        });
+
+        eventSource.addEventListener('TASK_UPDATE', e => {
+            try {
+                handleTaskUpdate(JSON.parse(e.data));
+            } catch (err) {
+                console.error("Error parsing TASK_UPDATE:", err);
+            }
+        });
+
+        eventSource.addEventListener('HEARTBEAT', () => {});
+
+         eventSource.addEventListener('ERROR', e => {
+            console.error("Server error:", JSON.parse(e.data));
+            updateConnectionStatus(false, JSON.parse(e.data).message);
+        });
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons(); // Initialize icons (like the loading spinner)
+        connectToStream();
+    });</script></body></html>
