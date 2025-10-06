@@ -15,6 +15,8 @@ UAF_IMMUTABLE_MODELS: Dict[str, Dict[str, str]] = {
 class Settings(BaseSettings):
     # Core Infrastructure
     REDIS_URL: RedisDsn = "redis://localhost:6379/0"
+    KV_REST_API_URL: Optional[str] = None  # Upstash Redis HTTP URL
+    KV_REST_API_TOKEN: Optional[SecretStr] = None  # Upstash Redis Token
     COMMAND_HUB_SECRET: SecretStr
     KV_STORE_KEY: str = 'operation_singularity:v32:master_plan_state'
     PUBSUB_CHANNEL: str = 'operation_singularity:v32:events'
